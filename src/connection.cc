@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
-
+#include <iostream>
 #include "connection.hpp"
 
 #if defined(ENABLE_NPKIT)
@@ -57,6 +57,15 @@ CudaIpcConnection::CudaIpcConnection(Endpoint localEndpoint, Endpoint remoteEndp
        << " != " << std::hex << getImpl(localEndpoint)->hostHash_;
     throw mscclpp::Error(ss.str(), ErrorCode::InvalidUsage);
   }
+  if (localEndpoint.getDeviceType() == DeviceType::GPU) {
+    memcpyKind_ = remoteEndpoint.getDeviceType() == DeviceType::GPU ? cudaMemcpyDefault : cudaMemcpyDeviceToHost;
+  } else {
+    if (remoteEndpoint.getDeviceType() == DeviceType::GPU) {
+      memcpyKind_ = cudaMemcpyHostToDevice;
+    } else {
+      throw mscclpp::Error("Cuda IPC connection cannot be made between two CPU endpoints.", ErrorCode::InvalidUsage);
+    }
+  }
   INFO(MSCCLPP_P2P, "Cuda IPC connection created");
 }
 
@@ -77,14 +86,17 @@ void CudaIpcConnection::write(RegisteredMemory dst, uint64_t dstOffset, Register
   char* srcPtr = (char*)src.data();
 
   if (!env()->cudaIpcUseDefaultStream && stream_->empty()) stream_->set(cudaStreamNonBlocking);
-
-  MSCCLPP_CUDATHROW(cudaMemcpyAsync(dstPtr + dstOffset, srcPtr + srcOffset, size, cudaMemcpyDeviceToDevice, *stream_));
+  
+  std::cout << "Write: " << dstOffset << ", " << srcOffset << ", " << size << std::endl;
+  MSCCLPP_CUDATHROW(cudaMemcpyAsync(dstPtr + dstOffset, srcPtr + srcOffset, size, memcpyKind_, *stream_));
   INFO(MSCCLPP_P2P, "CudaIpcConnection write: from %p to %p, size %lu", srcPtr + srcOffset, dstPtr + dstOffset, size);
 
 #if defined(ENABLE_NPKIT) && defined(ENABLE_NPKIT_EVENT_CONN_CUDA_IPC_WRITE_EXIT)
   NpKit::CollectCpuEvent(NPKIT_EVENT_CONN_CUDA_IPC_WRITE_EXIT, uint32_t(size), 0, *NpKit::GetCpuTimestamp(), 0);
 #endif
 }
+
+void CudaIpcConnection::writeSync() { cudaStreamSynchronize(*stream_); }
 
 void CudaIpcConnection::updateAndSync(RegisteredMemory dst, uint64_t dstOffset, uint64_t* src, uint64_t newValue) {
 #if defined(ENABLE_NPKIT) && defined(ENABLE_NPKIT_EVENT_CONN_CUDA_IPC_UPDATE_AND_SYNC_ENTRY)

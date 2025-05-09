@@ -33,6 +33,10 @@ MSCCLPP_API_CPP RegisteredMemory Context::registerMemory(void* ptr, size_t size,
   return RegisteredMemory(std::make_shared<RegisteredMemory::Impl>(ptr, size, transports, *pimpl_));
 }
 
+MSCCLPP_API_CPP RegisteredMemory Context::registerCpuMemory(void* ptr, size_t size, TransportFlags transports) {
+  return RegisteredMemory(std::make_shared<RegisteredMemory::Impl>(ptr, size, transports));
+}
+
 MSCCLPP_API_CPP Endpoint Context::createEndpoint(EndpointConfig config) {
   return Endpoint(std::make_shared<Endpoint::Impl>(config, *pimpl_));
 }

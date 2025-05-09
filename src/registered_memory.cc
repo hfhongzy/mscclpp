@@ -58,6 +58,9 @@ RegisteredMemory::Impl::Impl(void* data, size_t size, TransportFlags transports,
     size_t baseDataSize;  // dummy
     MSCCLPP_CUTHROW(cuMemGetAddressRange((CUdeviceptr*)&baseDataPtr, &baseDataSize, (CUdeviceptr)data));
     this->isCuMemMapAlloc = isCuMemMapAllocated(baseDataPtr);
+
+    // For app/vortex
+    MSCCLPP_CUDATHROW(cudaGetDevice(&deviceId));
     if (this->isCuMemMapAlloc) {
       CUmemGenericAllocationHandle handle;
       MSCCLPP_CUTHROW(cuMemRetainAllocationHandle(&handle, baseDataPtr));
@@ -104,6 +107,24 @@ RegisteredMemory::Impl::Impl(void* data, size_t size, TransportFlags transports,
   }
 }
 
+// Create a CPU memory
+RegisteredMemory::Impl::Impl(void* data, size_t size, TransportFlags transports)
+    : data(data),
+      originalDataPtr(data),
+      size(size),
+      hostHash(getHostHash()),
+      pidHash(getPidHash()),
+      transports(transports),
+      deviceId(-1) {
+  if (!transports.has(Transport::CudaIpc)) {
+    throw mscclpp::Error("Must support CudaIpc transport to register a CPU memory.", ErrorCode::InvalidUsage);
+  }
+  TransportInfo transportInfo;
+  transportInfo.transport = Transport::CudaIpc;
+  this->transportInfos.push_back(transportInfo);
+  // TODO: Serialize deviceId?
+}
+
 MSCCLPP_API_CPP RegisteredMemory::RegisteredMemory(std::shared_ptr<Impl> pimpl) : pimpl_(pimpl) {}
 
 MSCCLPP_API_CPP RegisteredMemory::~RegisteredMemory() = default;
@@ -112,9 +133,11 @@ MSCCLPP_API_CPP void* RegisteredMemory::data() const { return pimpl_->data; }
 
 MSCCLPP_API_CPP void* RegisteredMemory::originalDataPtr() const { return pimpl_->originalDataPtr; }
 
-MSCCLPP_API_CPP size_t RegisteredMemory::size() { return pimpl_->size; }
+MSCCLPP_API_CPP size_t RegisteredMemory::size() const { return pimpl_->size; }
 
-MSCCLPP_API_CPP TransportFlags RegisteredMemory::transports() { return pimpl_->transports; }
+MSCCLPP_API_CPP TransportFlags RegisteredMemory::transports() const { return pimpl_->transports; }
+
+MSCCLPP_API_CPP int RegisteredMemory::deviceId() const { return pimpl_->deviceId; }
 
 MSCCLPP_API_CPP std::vector<char> RegisteredMemory::serialize() {
   std::vector<char> result;

@@ -336,12 +336,17 @@ class RegisteredMemory {
   /// Get the size of the memory block.
   ///
   /// @return The size of the memory block.
-  size_t size();
+  size_t size() const;
 
   /// Get the transport flags associated with the memory block.
   ///
   /// @return The transport flags associated with the memory block.
-  TransportFlags transports();
+  TransportFlags transports() const;
+
+  /// Get the deviceId (deviceId == -1, if CPU) used by apps/vortex.
+  ///
+  /// @return The deviceId
+  int deviceId() const;
 
   /// Serialize the RegisteredMemory object to a vector of characters.
   ///
@@ -367,6 +372,8 @@ class RegisteredMemory {
   friend class Context;
   friend class Connection;
 };
+
+enum class DeviceType { CPU, GPU };
 
 /// Represents one end of a connection.
 class Endpoint {
@@ -394,6 +401,11 @@ class Endpoint {
   /// @param data A vector of characters representing a serialized Endpoint object.
   /// @return A deserialized Endpoint object.
   static Endpoint deserialize(const std::vector<char>& data);
+
+  /// Get the device type.
+  ///
+  /// @return The device type.
+  DeviceType getDeviceType() const;
 
  private:
   // The interal implementation.
@@ -480,6 +492,8 @@ struct EndpointConfig {
   int ibMaxWrPerSend;
   int maxWriteQueueSize;
 
+  DeviceType deviceType;
+
   /// Constructor that takes a transport and sets the other fields to their default values.
   ///
   /// @param transport The transport to use.
@@ -496,7 +510,16 @@ struct EndpointConfig {
         ibMaxCqPollNum(ibMaxCqPollNum),
         ibMaxSendWr(ibMaxSendWr),
         ibMaxWrPerSend(ibMaxWrPerSend),
-        maxWriteQueueSize(maxWriteQueueSize) {}
+        maxWriteQueueSize(maxWriteQueueSize),
+        deviceType(DeviceType::GPU) {}
+  EndpointConfig(Transport transport, DeviceType deviceType)
+      : transport(transport),
+        ibMaxCqSize(DefaultMaxCqSize),
+        ibMaxCqPollNum(DefaultMaxCqPollNum),
+        ibMaxSendWr(DefaultMaxSendWr),
+        ibMaxWrPerSend(DefaultMaxWrPerSend),
+        maxWriteQueueSize(-1),
+        deviceType(deviceType) {}
 };
 
 /// Represents a context for communication. This provides a low-level interface for forming connections in use-cases
@@ -530,6 +553,13 @@ class Context {
   /// @param transports Transport flags.
   /// @return RegisteredMemory A handle to the buffer.
   RegisteredMemory registerMemory(void* ptr, size_t size, TransportFlags transports);
+
+  /// Register a region of CPU memory of use in this context.
+  ///
+  /// @param ptr Base pointer to the memory.
+  /// @param size Size of the memory region in bytes.
+  /// @param transports Transport flags. Must Include CudaIpc.
+  RegisteredMemory registerCpuMemory(void* ptr, size_t size, TransportFlags transports);
 
   /// Create an endpoint for establishing connections.
   ///

@@ -13,7 +13,10 @@
 namespace mscclpp {
 
 Endpoint::Impl::Impl(EndpointConfig config, Context::Impl& contextImpl)
-    : transport_(config.transport), hostHash_(getHostHash()), maxWriteQueueSize_(config.maxWriteQueueSize) {
+    : transport_(config.transport),
+      hostHash_(getHostHash()),
+      maxWriteQueueSize_(config.maxWriteQueueSize),
+      deviceType(config.deviceType) {
   if (AllIBTransports.has(transport_)) {
     ibLocal_ = true;
     ibQp_ = contextImpl.getIbContext(transport_)
@@ -31,7 +34,6 @@ Endpoint::Impl::Impl(EndpointConfig config, Context::Impl& contextImpl)
     socketAddress_ = socket_->getAddr();
   }
 }
-
 MSCCLPP_API_CPP Transport Endpoint::transport() { return pimpl_->transport_; }
 
 MSCCLPP_API_CPP int Endpoint::maxWriteQueueSize() { return pimpl_->maxWriteQueueSize_; }
@@ -53,6 +55,8 @@ MSCCLPP_API_CPP std::vector<char> Endpoint::serialize() {
 MSCCLPP_API_CPP Endpoint Endpoint::deserialize(const std::vector<char>& data) {
   return Endpoint(std::make_shared<Impl>(data));
 }
+
+MSCCLPP_API_CPP DeviceType Endpoint::getDeviceType() const { return pimpl_->deviceType; }
 
 Endpoint::Impl::Impl(const std::vector<char>& serialization) {
   auto it = serialization.begin();
