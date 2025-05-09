@@ -57,7 +57,11 @@ struct RegisteredMemory::Impl {
   // For sharing memory handle via file descriptor
   int fileDesc = -1;
 
+  // For apps/vortex identify GPU ID (>= 0) or CPU (-1)
+  int deviceId = -1;
+
   Impl(void* data, size_t size, TransportFlags transports, Context::Impl& contextImpl);
+  Impl(void* data, size_t size, TransportFlags transports);
   /// Constructs a RegisteredMemory::Impl from a vector of data. The constructor should only be used for the remote
   /// memory.
   Impl(const std::vector<char>& data);

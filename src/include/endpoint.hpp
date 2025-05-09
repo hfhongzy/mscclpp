@@ -22,6 +22,8 @@ struct Endpoint::Impl {
   uint64_t hostHash_;
   int maxWriteQueueSize_;
 
+  DeviceType deviceType;
+
   // The following are only used for IB and are undefined for other transports.
   bool ibLocal_;
   IbQp* ibQp_;

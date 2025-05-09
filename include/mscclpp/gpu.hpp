@@ -29,12 +29,15 @@ constexpr auto cudaStreamNonBlocking = hipStreamNonBlocking;
 constexpr auto cudaStreamCaptureModeGlobal = hipStreamCaptureModeGlobal;
 constexpr auto cudaStreamCaptureModeRelaxed = hipStreamCaptureModeRelaxed;
 constexpr auto cudaHostAllocMapped = hipHostMallocMapped;
+constexpr auto cudaHostAllocPortable = hipHostMallocPortable;
+constexpr auto cudaHostAllocDefault = hipHostAllocDefault;
 constexpr auto cudaHostAllocWriteCombined = hipHostMallocWriteCombined;
 constexpr auto cudaMemcpyDefault = hipMemcpyDefault;
 constexpr auto cudaMemcpyDeviceToDevice = hipMemcpyDeviceToDevice;
 constexpr auto cudaMemcpyHostToDevice = hipMemcpyHostToDevice;
 constexpr auto cudaMemcpyDeviceToHost = hipMemcpyDeviceToHost;
 constexpr auto cudaIpcMemLazyEnablePeerAccess = hipIpcMemLazyEnablePeerAccess;
+constexpr auto cudaDevP2PAttrAccessSupported = hipDevP2PAttrAccessSupported;
 
 constexpr auto CU_MEM_ALLOCATION_TYPE_PINNED = hipMemAllocationTypePinned;
 constexpr auto CU_MEM_LOCATION_TYPE_DEVICE = hipMemLocationTypeDevice;
@@ -54,6 +57,7 @@ constexpr auto CU_MEM_ACCESS_FLAGS_PROT_READWRITE = hipMemAccessFlagsProtReadWri
 #define cudaDeviceSynchronize(...) hipDeviceSynchronize(__VA_ARGS__)
 #define cudaDeviceGetPCIBusId(...) hipDeviceGetPCIBusId(__VA_ARGS__)
 #define cudaHostAlloc(...) hipHostMalloc(__VA_ARGS__)
+#define cudaMallocHost(...) hipHostMalloc(__VA_ARGS__)
 #define cudaMalloc(...) hipMalloc(__VA_ARGS__)
 #define cudaFree(...) hipFree(__VA_ARGS__)
 #define cudaFreeHost(...) hipHostFree(__VA_ARGS__)
@@ -77,6 +81,9 @@ constexpr auto CU_MEM_ACCESS_FLAGS_PROT_READWRITE = hipMemAccessFlagsProtReadWri
 #define cudaIpcGetMemHandle(...) hipIpcGetMemHandle(__VA_ARGS__)
 #define cudaIpcOpenMemHandle(...) hipIpcOpenMemHandle(__VA_ARGS__)
 #define cudaIpcCloseMemHandle(...) hipIpcCloseMemHandle(__VA_ARGS__)
+#define cudaDeviceEnablePeerAccess(...) hipDeviceEnablePeerAccess(__VA_ARGS__)
+#define cudaDeviceCanAccessPeer(...) hipDeviceCanAccessPeer(__VA_ARGS__)
+#define cudaDeviceGetP2PAttribute(...) hipDeviceGetP2PAttribute(__VA_ARGS__)
 
 #define cuGetErrorString(...) hipDrvGetErrorString(__VA_ARGS__)
 #define cuMemAddressReserve(...) hipMemAddressReserve(__VA_ARGS__)
