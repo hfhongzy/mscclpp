@@ -33,6 +33,10 @@ MSCCLPP_API_CPP RegisteredMemory Context::registerMemory(void* ptr, size_t size,
   return RegisteredMemory(std::make_shared<RegisteredMemory::Impl>(ptr, size, transports, *pimpl_));
 }
 
+MSCCLPP_API_CPP RegisteredMemory Context::registerCpuMemory(void* ptr, size_t size, TransportFlags transports) {
+  return RegisteredMemory(std::make_shared<RegisteredMemory::Impl>(ptr, size, transports));
+}
+
 MSCCLPP_API_CPP Endpoint Context::createEndpoint(EndpointConfig config) {
   return Endpoint(std::make_shared<Endpoint::Impl>(config, *pimpl_));
 }
@@ -58,6 +62,19 @@ MSCCLPP_API_CPP std::shared_ptr<Connection> Context::connect(Endpoint localEndpo
     throw mscclpp::Error("Unsupported transport", ErrorCode::InternalError);
   }
 
+  pimpl_->connections_.push_back(conn);
+  return conn;
+}
+
+MSCCLPP_API_CPP std::shared_ptr<Connection> Context::connectWithNewStream(Endpoint localEndpoint,
+                                                                          Endpoint remoteEndpoint) {
+  std::shared_ptr<Connection> conn;
+  if (localEndpoint.transport() != Transport::CudaIpc || remoteEndpoint.transport() != Transport::CudaIpc) {
+    throw mscclpp::Error("connectWithNewStream only suuport CudaIpc", ErrorCode::InvalidUsage);
+  }
+  std::shared_ptr<CudaStreamWithFlags> stream = std::make_shared<CudaStreamWithFlags>();
+  stream->set(cudaStreamNonBlocking);
+  conn = std::make_shared<CudaIpcConnection>(localEndpoint, remoteEndpoint, stream);
   pimpl_->connections_.push_back(conn);
   return conn;
 }

@@ -18,6 +18,7 @@ option(MSCCLPP_ENABLE_TRACE "Enable tracing" OFF)
 option(MSCCLPP_BUILD_TESTS "Build tests" ON)
 option(MSCCLPP_BUILD_PYTHON_BINDINGS "Build Python bindings" ON)
 option(MSCCLPP_BUILD_APPS_NCCL "Build NCCL interfaces" ON)
+option(MSCCLPP_BUILD_APPS_VORTEX "Build Vortex interface" ON)
 option(MSCCLPP_USE_CUDA "Use NVIDIA/CUDA." OFF)
 option(MSCCLPP_USE_ROCM "Use AMD/ROCm." OFF)
 option(MSCCLPP_BYPASS_GPU_CHECK "Bypass GPU check." OFF)
@@ -163,4 +164,9 @@ endif()
 # NCCL interfaces
 if(MSCCLPP_BUILD_APPS_NCCL)
     add_subdirectory(apps/nccl)
+endif()
+
+# Vortex interfaces
+if(MSCCLPP_BUILD_APPS_VORTEX)
+    add_subdirectory(apps/vortex)
 endif()

@@ -17,6 +17,7 @@ namespace mscclpp {
 
 class CudaIpcConnection : public Connection {
   std::shared_ptr<CudaStreamWithFlags> stream_;
+  cudaMemcpyKind memcpyKind_;
 
  public:
   CudaIpcConnection(Endpoint localEndpoint, Endpoint remoteEndpoint, std::shared_ptr<CudaStreamWithFlags> stream);
@@ -27,6 +28,7 @@ class CudaIpcConnection : public Connection {
 
   void write(RegisteredMemory dst, uint64_t dstOffset, RegisteredMemory src, uint64_t srcOffset,
              uint64_t size) override;
+  void writeSync();
   void updateAndSync(RegisteredMemory dst, uint64_t dstOffset, uint64_t* src, uint64_t newValue) override;
 
   void flush(int64_t timeoutUsec) override;
