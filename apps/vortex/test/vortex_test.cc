@@ -8,12 +8,20 @@
 #include <mscclpp/memory_channel_device.hpp>
 
 #include <iostream>
+#include <chrono>
 
 using namespace mscclpp;
 
+int cnt = 3;
+
 int main() {
+  -- cnt;
+  if (cnt == 0) {
+    return 0;
+  }
   static constexpr size_t NUM_GPU = 4;
   static constexpr size_t TARGET_GPU = 0;
+  constexpr int granularity = 20'000'000; // 20MB
 
   uint8_t byte_test = 32 | 8;
 
@@ -27,13 +35,12 @@ int main() {
 
   // size_t onload_len = 1024 * 1000 * 100;
   // size_t offload_len = 2048 * 1000 * 100;
-  size_t onload_len = 400 * 1000 * 100;
-  size_t offload_len = 400 * 1000 * 100;
+  size_t onload_len = granularity / 4 * 100;
+  size_t offload_len = granularity / 4 * 50;
   // 160 x 10^6
 
   const size_t onload_size = onload_len * sizeof(uint32_t);
   const size_t offload_size = offload_len * sizeof(uint32_t);
-
   MSCCLPP_CUDATHROW(cudaMallocHost(&cpuSrcMem, onload_size));  // Pinned memory
   MSCCLPP_CUDATHROW(cudaMallocHost(&cpuDstMem, offload_size));
 
@@ -45,17 +52,17 @@ int main() {
   }
   MSCCLPP_CUDATHROW(cudaSetDevice(TARGET_GPU));
   MSCCLPP_CUDATHROW(cudaMalloc(&gpuSrcMem, offload_size));
-  MSCCLPP_CUDATHROW(cudaMalloc(&gpuDstMem, onload_size));
   MSCCLPP_CUDATHROW(cudaMemset(gpuSrcMem, byte_test, offload_size));
+  MSCCLPP_CUDATHROW(cudaMalloc(&gpuDstMem, onload_size));
   MSCCLPP_CUDATHROW(cudaMemset(gpuDstMem, 0, onload_size));
   // Dst memories are initialized with 0, while src memories are all non-zeros.
 
   std::cout << "INFO: CPU & GPU memories initialized." << std::endl;
 
   RegisteredMemory cpuSrcRegMem = context->registerCpuMemory(cpuSrcMem, onload_size, transports);
-  RegisteredMemory cpuDstRegMem = context->registerCpuMemory(cpuDstMem, offload_size, transports);
+  RegisteredMemory cpuDstRegMem = context->registerCpuMemory(cpuDstMem, offload_size, transports); //
   MSCCLPP_CUDATHROW(cudaSetDevice(TARGET_GPU));
-  RegisteredMemory gpuSrcRegMem = context->registerMemory(gpuSrcMem, offload_size, transports);
+  RegisteredMemory gpuSrcRegMem = context->registerMemory(gpuSrcMem, offload_size, transports); //
   RegisteredMemory gpuDstRegMem = context->registerMemory(gpuDstMem, onload_size, transports);
 
   std::cout << "INFO: CPU & GPU memories registered." << std::endl;
@@ -68,19 +75,25 @@ int main() {
 
   std::cout << "INFO: Endpoints created." << std::endl;
 
-  constexpr int granularity = 20'000'000; // 20MB
-  // constexpr int granularity = 2000; // 20MB
   vortex::sched::LoadBalancedExchange exchange(granularity, NUM_GPU, context, ep);
 
   std::cout << "INFO: Exchange primitive constructed." << std::endl;
   
-  exchange.launch(gpuDstRegMem, cpuSrcRegMem, cpuDstRegMem, gpuSrcRegMem);
+  auto start = std::chrono::high_resolution_clock::now();
 
+  exchange.launch(gpuDstRegMem, cpuSrcRegMem, cpuDstRegMem, gpuSrcRegMem);
+  // exchange.launch(std::vector<RegisteredMemory>{gpuDstRegMem}, std::vector<RegisteredMemory>{cpuSrcRegMem}, std::vector<RegisteredMemory>{}, std::vector<RegisteredMemory>{});
+  
   std::cout << "INFO: Exchange launched." << std::endl;
 
   exchange.sync();
 
   std::cout << "INFO: Exchange.launch() finished." << std::endl;
+  auto end = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+  std::cout << "Time: " << duration.count() << " ms" << std::endl;
+  std::cout << "Bandwidth: " << int((onload_size + offload_size) / (double)duration.count()) << " bytes/s" << std::endl;
   // validate
 
   uint32_t *h2d = new uint32_t[onload_size];
@@ -112,4 +125,6 @@ int main() {
   cudaFreeHost(cpuDstMem);
   delete []h2d;
   delete []d2h;
+  return main();
+  return 0;
 }

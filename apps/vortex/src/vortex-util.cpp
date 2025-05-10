@@ -12,6 +12,7 @@
     } \
 }
 
+#include <mutex>
 namespace vortex::cuda {
   /*
    * runtime API Wrappers
@@ -26,16 +27,15 @@ namespace vortex::cuda {
   void DeviceMalloc(void **ptr, size_t size) { CUDA_CHECK_ERROR(cudaMalloc(ptr, size)); }
 
   void DeviceFree(void *ptr) { CUDA_CHECK_ERROR(cudaFree(ptr)); }
-  // void CudaIpcConnection::write(RegisteredMemory dst, uint64_t dstOffset, RegisteredMemory src, uint64_t srcOffset, uint64_t size)
+
   void MemcpyAsync(MemoryRef dst, MemoryRef src, std::shared_ptr<CudaIpcConnection> connection) {
     assert(dst.size == src.size);
-    std::cout << "Memcpy L" << std::endl;
-    std::cout << dst.offset << " " << src.offset << " " << src.size << " " << std::endl;
+    // std::cout << "device = " << dst.device << ", " << src.device << std::endl;
     if (src.origin == nullptr || dst.origin == nullptr) {
-      std::cout << "???";
+      assert(0);
     }
-    connection->write(*(dst.origin), dst.offset, *(src.origin), src.offset, src.size);
-    std::cout << "Memcpy R" << std::endl;
+
+    connection->writeDebug(*(dst.origin), dst.offset, *(src.origin), src.offset, src.size, dst.device, src.device); // for debug
     // if (dst.device == -1 && src.device != -1) {
     //   CUDA_CHECK_ERROR(cudaMemcpyAsync(dst.ptr(), src.ptr(), src.size, cudaMemcpyDeviceToHost, s));
     // } else if (dst.device != -1 && src.device == -1) {
@@ -47,15 +47,15 @@ namespace vortex::cuda {
     // }
   }
 
-  void MemsetAsync(MemoryRef dst, int value, cudaStream_t s) {
-    CUDA_CHECK_ERROR(cudaMemsetAsync(dst.ptr(), value, dst.size, s));
-  }
+  // void MemsetAsync(MemoryRef dst, int value, cudaStream_t s) {
+  //   CUDA_CHECK_ERROR(cudaMemsetAsync(dst.ptr(), value, dst.size, s));
+  // }
 
-  std::tuple<size_t, size_t> MemGetInfo() {
-    size_t left, total;
-    CUDA_CHECK_ERROR(cudaMemGetInfo(&left, &total));
-    return {left, total};
-  }
+  // std::tuple<size_t, size_t> MemGetInfo() {
+  //   size_t left, total;
+  //   CUDA_CHECK_ERROR(cudaMemGetInfo(&left, &total));
+  //   return {left, total};
+  // }
 
   void DeviceSynchronize() {
     CUDA_CHECK_ERROR(cudaDeviceSynchronize());
@@ -89,100 +89,100 @@ namespace vortex::cuda {
     return prop;
   }
 
-  // --- Stream
-  cudaStream_t StreamCreate() {
-    cudaStream_t r;
-    CUDA_CHECK_ERROR(cudaStreamCreate(&r));
-    return r;
-  }
+  // // --- Stream
+  // cudaStream_t StreamCreate() {
+  //   cudaStream_t r;
+  //   CUDA_CHECK_ERROR(cudaStreamCreate(&r));
+  //   return r;
+  // }
 
-  void StreamDestroy(cudaStream_t s) { CUDA_CHECK_ERROR(cudaStreamDestroy(s)); }
+  // void StreamDestroy(cudaStream_t s) { CUDA_CHECK_ERROR(cudaStreamDestroy(s)); }
 
-  bool StreamQuery(cudaStream_t s) {
-    cudaError_t err = cudaStreamQuery(s);
-    if (err == cudaSuccess)
-      return true;
-    else if (err == cudaErrorNotReady)
-      return false;
-    else
-      throw std::runtime_error("Failed to query stream");
-  }
+  // bool StreamQuery(cudaStream_t s) {
+  //   cudaError_t err = cudaStreamQuery(s);
+  //   if (err == cudaSuccess)
+  //     return true;
+  //   else if (err == cudaErrorNotReady)
+  //     return false;
+  //   else
+  //     throw std::runtime_error("Failed to query stream");
+  // }
 
-  void StreamSynchronize(cudaStream_t s) {
-    CUDA_CHECK_ERROR(cudaStreamSynchronize(s));
-  }
+  // void StreamSynchronize(cudaStream_t s) {
+  //   CUDA_CHECK_ERROR(cudaStreamSynchronize(s));
+  // }
 
-  void StreamWaitEvent(cudaStream_t s, cudaEvent_t e) {
-    CUDA_CHECK_ERROR(cudaStreamWaitEvent(s, e, 0));
-  }
+  // void StreamWaitEvent(cudaStream_t s, cudaEvent_t e) {
+  //   CUDA_CHECK_ERROR(cudaStreamWaitEvent(s, e, 0));
+  // }
 
-  void StreamAddCallback(cudaStream_t s, cudaStreamCallback_t callback, void *userData) {
-    CUDA_CHECK_ERROR(cudaStreamAddCallback(s, callback, userData, 0));
-  }
+  // void StreamAddCallback(cudaStream_t s, cudaStreamCallback_t callback, void *userData) {
+  //   CUDA_CHECK_ERROR(cudaStreamAddCallback(s, callback, userData, 0));
+  // }
 
   // --- Event
-  cudaEvent_t EventCreate() {
-    cudaEvent_t e;
-    CUDA_CHECK_ERROR(cudaEventCreate(&e));
-    return e;
-  }
+  // cudaEvent_t EventCreate() {
+  //   cudaEvent_t e;
+  //   CUDA_CHECK_ERROR(cudaEventCreate(&e));
+  //   return e;
+  // }
 
-  void EventDestroy(cudaEvent_t e) { CUDA_CHECK_ERROR(cudaEventDestroy(e)); }
+  // void EventDestroy(cudaEvent_t e) { CUDA_CHECK_ERROR(cudaEventDestroy(e)); }
 
-  void EventRecord(cudaEvent_t e, cudaStream_t s) {
-    CUDA_CHECK_ERROR(cudaEventRecord(e, s));
-  }
+  // void EventRecord(cudaEvent_t e, cudaStream_t s) {
+  //   CUDA_CHECK_ERROR(cudaEventRecord(e, s));
+  // }
 
-  void EventSynchronize(cudaEvent_t e) { CUDA_CHECK_ERROR(cudaEventSynchronize(e)); }
+  // void EventSynchronize(cudaEvent_t e) { CUDA_CHECK_ERROR(cudaEventSynchronize(e)); }
 
-  bool EventQuery(cudaEvent_t e) {
-    cudaError_t err = cudaEventQuery(e);
-    if (err == cudaSuccess)
-      return true;
-    else if (err == cudaErrorNotReady)
-      return false;
-    else
-      throw std::runtime_error("Failed to query Event");
-  }
+  // bool EventQuery(cudaEvent_t e) {
+  //   cudaError_t err = cudaEventQuery(e);
+  //   if (err == cudaSuccess)
+  //     return true;
+  //   else if (err == cudaErrorNotReady)
+  //     return false;
+  //   else
+  //     throw std::runtime_error("Failed to query Event");
+  // }
 
-  float EventElapsedTime(cudaEvent_t start, cudaEvent_t stop) {
-    float r;
-    CUDA_CHECK_ERROR(cudaEventElapsedTime(&r, start, stop));
-    return r;
-  }
+  // float EventElapsedTime(cudaEvent_t start, cudaEvent_t stop) {
+  //   float r;
+  //   CUDA_CHECK_ERROR(cudaEventElapsedTime(&r, start, stop));
+  //   return r;
+  // }
 
   // --- Control Primitives Proxy
-  Stream::Stream() : stream_(StreamCreate()), device_(GetDevice()) {}
+  // Stream::Stream() : stream_(StreamCreate()), device_(GetDevice()) {}
 
-  Stream::Stream(Stream &&s) {
-    if (&s != this) {
-      this->stream_ = s.stream_;
-      this->device_ = s.device_;
-      s.device_ = -1;
-    }
-  }
+  // Stream::Stream(Stream &&s) {
+  //   if (&s != this) {
+  //     this->stream_ = s.stream_;
+  //     this->device_ = s.device_;
+  //     s.device_ = -1;
+  //   }
+  // }
 
-  Stream::~Stream() {
-    if (device_ != -1) {
-      StreamDestroy(stream_);
-    }
-  }
+  // Stream::~Stream() {
+  //   if (device_ != -1) {
+  //     StreamDestroy(stream_);
+  //   }
+  // }
 
-  Event::Event() : e_(EventCreate()), device_(GetDevice()) {}
+  // Event::Event() : e_(EventCreate()), device_(GetDevice()) {}
 
-  Event::Event(Event &&e) {
-    if (&e != this) {
-      this->e_ = e.e_;
-      this->device_ = e.device_;
-      e.device_ = -1;
-    }
-  }
+  // Event::Event(Event &&e) {
+  //   if (&e != this) {
+  //     this->e_ = e.e_;
+  //     this->device_ = e.device_;
+  //     e.device_ = -1;
+  //   }
+  // }
 
-  Event::~Event() {
-    if (device_ != -1) {
-      EventDestroy(e_);
-    }
-  }
+  // Event::~Event() {
+  //   if (device_ != -1) {
+  //     EventDestroy(e_);
+  //   }
+  // }
 
   // --- Memory Primitive Proxy
   DeviceGuard::DeviceGuard(int id) : original_device_id(GetDevice()), current_device_id(id) {
@@ -193,11 +193,11 @@ namespace vortex::cuda {
     SetDevice(original_device_id);
   }
 
-  DeviceMemory::DeviceMemory(size_t size) : size_(size), device_(GetDevice()) {
-    void *p;
-    DeviceMalloc(&p, size_);
-    ptr_.reset(p);
-  }
+  // DeviceMemory::DeviceMemory(size_t size) : size_(size), device_(GetDevice()) {
+  //   void *p;
+  //   DeviceMalloc(&p, size_);
+  //   ptr_.reset(p);
+  // }
 
   /*
    * Platform Information
@@ -207,7 +207,13 @@ namespace vortex::cuda {
       DeviceGuard on(i);
       for (int j = 0; j < deviceCount_; j++) {
         if (i == j) continue;
-        // DeviceEnablePeerAccess(j);
+        int attr = 0;
+        cudaDeviceGetP2PAttribute(&attr, cudaDevP2PAttrAccessSupported, i, j);
+
+        if (attr) {
+          std::cout << "P2P is supported between " << i << " and " << j << std::endl;
+          DeviceEnablePeerAccess(j);
+        }
       }
     }
   }
@@ -242,6 +248,4 @@ namespace vortex::cuda {
       deviceProps_[i] = GetDeviceProperties(i);
     }
   }
-
-  Platform platform;
 }

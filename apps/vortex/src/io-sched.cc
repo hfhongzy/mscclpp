@@ -72,7 +72,7 @@ void LoadBalancingSched::reset(MemoryRef H2Ddst, MemoryRef H2Dsrc, MemoryRef D2H
   );
 }
 
-IOTask LoadBalancingSched::nextH2D(int id) {
+IOTask LoadBalancingSched::nextH2D([[maybe_unused]] int id) {
   size_t i = h2dCnt_.fetch_add(1);
   if (i < h2dTasks_.size()) {
     h2dIssued_.fetch_add(h2dTasks_[i].dst.size);
@@ -102,7 +102,7 @@ IOTask LoadBalancingSched::nextD2H(int id) {
 }
 
 IOTask LoadBalancingSched::next(int id) {
-  printf ("next calling: %d\n", id);
+  // printf ("next calling: %d\n", id);
   if (id < NUM_GPU) {
     return nextH2D(id);
   } else {
@@ -111,7 +111,7 @@ IOTask LoadBalancingSched::next(int id) {
 }
 
 void LoadBalancingSched::report(int id, int task) {
-  printf ("report: success\n");
+  printf ("report: success ID = %d, task = %d\n", id, task);
   if (id < NUM_GPU) {
     robh2d_[task] = 1;
   } else {
@@ -136,7 +136,7 @@ void LoadBalancingSched::d2hSent() {
 }
 
 void IndirectLink::caller() {
-  int old1{0}, old2{0};
+  // int old1{0}, old2{0};
   while (true) {
     // fmt::print("[{}] loop begin\n", id_);
     size_t curBufSize = bufDst_.size;
@@ -186,8 +186,8 @@ void IndirectLink::caller() {
       using namespace std::chrono_literals;
       sleep_for(10us);
     }
-    old1 = stage1Cnt_;
-    old2 = stage2Cnt_;
+    // old1 = stage1Cnt_;
+    // old2 = stage2Cnt_;
 
     if (task.done) break; // last transfer, break
   }
@@ -200,7 +200,7 @@ void IndirectLink::caller() {
 } 
 
 void DirectLink::caller() {
-  int old{0};
+  // int old{0};
   while (true) {
     auto task = nextFn_(id_);
     if (task.dst.size > 0) {
@@ -236,10 +236,10 @@ ExchangeContextOwning::ExchangeContextOwning(size_t gran, std::shared_ptr<Contex
     // h2dstreams_.emplace_back();
     // d2hstreams_.emplace_back();
     // d2hstreams_.emplace_back();
-    h2dconnections_.push_back(std::dynamic_pointer_cast<CudaIpcConnection>(context->connect(ep[0], ep[d+1])));
-    h2dconnections_.push_back(std::dynamic_pointer_cast<CudaIpcConnection>(context->connect(ep[0], ep[d+1])));
-    d2hconnections_.push_back(std::dynamic_pointer_cast<CudaIpcConnection>(context->connect(ep[d+1], ep[0])));
-    d2hconnections_.push_back(std::dynamic_pointer_cast<CudaIpcConnection>(context->connect(ep[d+1], ep[0])));
+    h2dconnections_.push_back(std::dynamic_pointer_cast<CudaIpcConnection>(context->connectWithNewStream(ep[0], ep[d+1])));
+    h2dconnections_.push_back(std::dynamic_pointer_cast<CudaIpcConnection>(context->connectWithNewStream(ep[0], ep[d+1])));
+    d2hconnections_.push_back(std::dynamic_pointer_cast<CudaIpcConnection>(context->connectWithNewStream(ep[d+1], ep[0])));
+    d2hconnections_.push_back(std::dynamic_pointer_cast<CudaIpcConnection>(context->connectWithNewStream(ep[d+1], ep[0])));
   }
 }
 

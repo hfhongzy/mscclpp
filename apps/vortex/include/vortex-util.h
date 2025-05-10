@@ -35,33 +35,6 @@ namespace vortex::cuda {
 
   void DeviceSynchronize();
 
-  // --- Stream
-  cudaStream_t StreamCreate();
-  void StreamDestroy(cudaStream_t s);
-  bool StreamQuery(cudaStream_t s);
-  void StreamSynchronize(cudaStream_t s);
-  void StreamWaitEvent(cudaStream_t s, cudaEvent_t e);
-  void StreamAddCallback(cudaStream_t s, cudaStreamCallback_t callback, void *userData);
-
-  // --- Event
-  cudaEvent_t EventCreate();
-  void EventDestroy(cudaEvent_t e);
-  void EventRecord(cudaEvent_t e, cudaStream_t s);
-  void EventSynchronize(cudaEvent_t e);
-  bool EventQuery(cudaEvent_t e);
-  float EventElapsedTime(cudaEvent_t start, cudaEvent_t stop);
-
-  // --- Kernel
-  template <typename... Args, typename F = void (*)(Args...)>
-  void LanuchKernel(F&& kernel, const dim3& numBlocks, const dim3& dimBlocks,
-      uint32_t sharedMemBytes, cudaStream_t s, Args&&... args) {
-    cudaLaunchKernelGGL(std::forward<F>(kernel), numBlocks, dimBlocks, sharedMemBytes, s, std::forward<Args>(args)...);
-    cudaError_t launchError = cudaGetLastError();
-    if (launchError != cudaSuccess) {
-        std::cerr << "Kernel launch failed: " << cudaGetErrorString(launchError) << std::endl;
-    }
-  }
-
   /*
    * Control Primitives Proxy
    */
@@ -80,94 +53,57 @@ namespace vortex::cuda {
     int device() const { return current_device_id; }
   };
 
-  class Stream {
-    cudaStream_t stream_;
-    int device_ = -1;
-  public:
-    using handle_t = cudaStream_t;
-    Stream();
-    Stream(Stream &&s);
-    ~Stream();
-
-    operator cudaStream_t() { return stream_; }
-    int device() { return device_; }
-
-    bool query() { return StreamQuery(stream_); }
-    void synchronize() {return StreamSynchronize(stream_); }
-    void waitEvent(cudaEvent_t e) { StreamWaitEvent(stream_, e); }
-  };
-
-  class Event {
-    cudaEvent_t e_;
-    int device_ = -1;
-  public:
-    Event();
-    Event(Event &&e);
-    ~Event();
-
-    operator cudaEvent_t() { return e_; }
-    int device() { return device_; }
-
-    void record(cudaStream_t s) { EventRecord(e_, s); }
-    void synchronize() {EventSynchronize(e_); }
-    bool query() { return EventQuery(e_); }
-  };
-
-  inline float ElapsedTime(Event &start, Event &stop) {
-    return EventElapsedTime(start, stop);
-  }
-
   /*
    * Memory Primitive Proxy
    */
 
-  template<typename T>
-  struct HostAllocator {
-    using value_type = T;
+  // template<typename T>
+  // struct HostAllocator {
+  //   using value_type = T;
 
-    HostAllocator() noexcept {}
+  //   HostAllocator() noexcept {}
 
-    HostAllocator(const HostAllocator<T>&) noexcept {}
+  //   HostAllocator(const HostAllocator<T>&) noexcept {}
 
-    T* allocate(std::size_t n) {
-      T* ptr;
-      HostMalloc(reinterpret_cast<void **>(&ptr), n * sizeof(T));
-      return ptr;
-    }
+  //   T* allocate(std::size_t n) {
+  //     T* ptr;
+  //     HostMalloc(reinterpret_cast<void **>(&ptr), n * sizeof(T));
+  //     return ptr;
+  //   }
 
-    void deallocate(T* p, std::size_t) noexcept {
-      HostFree(p);
-    }
-  };
+  //   void deallocate(T* p, std::size_t) noexcept {
+  //     HostFree(p);
+  //   }
+  // };
 
-  template <typename T>
-  using HostVector = std::vector<T, HostAllocator<T>>;
+  // template <typename T>
+  // using HostVector = std::vector<T, HostAllocator<T>>;
 
-  struct DeviceMemoryDeleter {
-    void operator()(void* ptr) const {
-      DeviceFree(ptr);
-    }
-  };
+  // struct DeviceMemoryDeleter {
+  //   void operator()(void* ptr) const {
+  //     DeviceFree(ptr);
+  //   }
+  // };
 
-  class DeviceMemory {
-    std::unique_ptr<void, DeviceMemoryDeleter> ptr_{nullptr};
-    size_t size_{0};
-    int device_{-1};
-  public:
-    DeviceMemory() = default;
-    DeviceMemory(size_t size);
+  // class DeviceMemory {
+  //   std::unique_ptr<void, DeviceMemoryDeleter> ptr_{nullptr};
+  //   size_t size_{0};
+  //   int device_{-1};
+  // public:
+  //   DeviceMemory() = default;
+  //   DeviceMemory(size_t size);
 
-    void *get() {return ptr_.get(); }
-    const void *get() const {return ptr_.get(); }
+  //   void *get() {return ptr_.get(); }
+  //   const void *get() const {return ptr_.get(); }
 
-    template <typename T>
-    operator T*() { return reinterpret_cast<T *>(get()); }
-    template <typename T>
-    operator const T*() const { return reinterpret_cast<T *>(get()); }
+  //   template <typename T>
+  //   operator T*() { return reinterpret_cast<T *>(get()); }
+  //   template <typename T>
+  //   operator const T*() const { return reinterpret_cast<T *>(get()); }
 
-    size_t size() const { return size_; }
-    int device() const {return device_; }
-  };
+  //   size_t size() const { return size_; }
+  //   int device() const {return device_; }
+  // };
 
   struct MemoryRef {
     // uint8_t *ptr = nullptr;
@@ -184,8 +120,8 @@ namespace vortex::cuda {
     // MemoryRef(HostVector<T> &rhs) : 
     //   ptr(reinterpret_cast<uint8_t *>(&rhs[0])), size(rhs.size() * sizeof(T)), device(-1) {}
 
-    MemoryRef(DeviceMemory &rhs) :
-      offset(0), size(rhs.size()), device(rhs.device()), origin() {}
+    // MemoryRef(DeviceMemory &rhs) :
+    //   offset(0), size(rhs.size()), device(rhs.device()), origin() {}
 
     MemoryRef(const mscclpp::RegisteredMemory &rhs) :
       offset(0), size(rhs.size()), device(rhs.deviceId()), origin(std::make_shared<mscclpp::RegisteredMemory>(rhs)) {}

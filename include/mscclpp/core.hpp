@@ -576,6 +576,8 @@ class Context {
   /// @return std::shared_ptr<Connection> A shared pointer to the connection.
   std::shared_ptr<Connection> connect(Endpoint localEndpoint, Endpoint remoteEndpoint);
 
+  std::shared_ptr<Connection> connectWithNewStream(Endpoint localEndpoint, Endpoint remoteEndpoint);
+
  private:
   // The interal implementation.
   struct Impl;

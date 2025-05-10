@@ -24,7 +24,7 @@ using mscclpp::Endpoint;
 using mscclpp::DeviceType;
 
 using vortex::cuda::MemoryRef;
-using vortex::cuda::Stream;
+// using vortex::cuda::Stream;
 // using vortex::cuda::DeviceMemory;
 
 // using gpuio::cuda::MemcpyAsync;

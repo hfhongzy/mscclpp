@@ -1,7 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
-#include <iostream>
 #include "connection.hpp"
+
+#include <iostream>
 
 #if defined(ENABLE_NPKIT)
 #include <mscclpp/npkit/npkit.hpp>
@@ -44,6 +45,7 @@ int Connection::getMaxWriteQueueSize() { return maxWriteQueueSize; }
 CudaIpcConnection::CudaIpcConnection(Endpoint localEndpoint, Endpoint remoteEndpoint,
                                      std::shared_ptr<CudaStreamWithFlags> stream)
     : Connection(localEndpoint.maxWriteQueueSize()), stream_(stream) {
+  std::cout << "BUILDING CONNECTION: " << stream_ << std::endl;
   if (localEndpoint.transport() != Transport::CudaIpc) {
     throw mscclpp::Error("Cuda IPC connection can only be made from a Cuda IPC endpoint", ErrorCode::InvalidUsage);
   }
@@ -73,6 +75,8 @@ Transport CudaIpcConnection::transport() { return Transport::CudaIpc; }
 
 Transport CudaIpcConnection::remoteTransport() { return Transport::CudaIpc; }
 
+std::mutex cout_mutex;
+
 void CudaIpcConnection::write(RegisteredMemory dst, uint64_t dstOffset, RegisteredMemory src, uint64_t srcOffset,
                               uint64_t size) {
 #if defined(ENABLE_NPKIT) && defined(ENABLE_NPKIT_EVENT_CONN_CUDA_IPC_WRITE_ENTRY)
@@ -86,8 +90,39 @@ void CudaIpcConnection::write(RegisteredMemory dst, uint64_t dstOffset, Register
   char* srcPtr = (char*)src.data();
 
   if (!env()->cudaIpcUseDefaultStream && stream_->empty()) stream_->set(cudaStreamNonBlocking);
-  
-  std::cout << "Write: " << dstOffset << ", " << srcOffset << ", " << size << std::endl;
+
+  MSCCLPP_CUDATHROW(cudaMemcpyAsync(dstPtr + dstOffset, srcPtr + srcOffset, size, memcpyKind_, *stream_));
+  INFO(MSCCLPP_P2P, "CudaIpcConnection write: from %p to %p, size %lu", srcPtr + srcOffset, dstPtr + dstOffset, size);
+
+#if defined(ENABLE_NPKIT) && defined(ENABLE_NPKIT_EVENT_CONN_CUDA_IPC_WRITE_EXIT)
+  NpKit::CollectCpuEvent(NPKIT_EVENT_CONN_CUDA_IPC_WRITE_EXIT, uint32_t(size), 0, *NpKit::GetCpuTimestamp(), 0);
+#endif
+}
+void CudaIpcConnection::writeDebug(RegisteredMemory dst, uint64_t dstOffset, RegisteredMemory src, uint64_t srcOffset,
+                                   uint64_t size, int dstDevice, int srcDevice) {
+#if defined(ENABLE_NPKIT) && defined(ENABLE_NPKIT_EVENT_CONN_CUDA_IPC_WRITE_ENTRY)
+  NpKit::CollectCpuEvent(NPKIT_EVENT_CONN_CUDA_IPC_WRITE_ENTRY, uint32_t(size), 0, *NpKit::GetCpuTimestamp(), 0);
+#endif
+
+  validateTransport(dst, remoteTransport(), dstOffset, size);
+  validateTransport(src, transport(), srcOffset, size);
+
+  char* dstPtr = (char*)dst.data();
+  char* srcPtr = (char*)src.data();
+
+  if (!env()->cudaIpcUseDefaultStream && stream_->empty()) {
+    std::cout << "Setting stream...??" << std::endl;
+    stream_->set(cudaStreamNonBlocking);
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(cout_mutex);
+    std::cout << "FROM " << srcDevice << " TO " << dstDevice << std::endl;
+    std::cout << "Stream =" << static_cast<cudaStream_t>(*stream_) << std::endl;
+    std::cout << "dstOffset: " << dstOffset << ", srcOffset = " << srcOffset << ", size = " << size << std::endl;
+    std::cout << "srcPtr: [" << (void*)srcPtr << "], dstPtr: [" << (void*)dstPtr << "]" << std::endl;
+  }
+
   MSCCLPP_CUDATHROW(cudaMemcpyAsync(dstPtr + dstOffset, srcPtr + srcOffset, size, memcpyKind_, *stream_));
   INFO(MSCCLPP_P2P, "CudaIpcConnection write: from %p to %p, size %lu", srcPtr + srcOffset, dstPtr + dstOffset, size);
 

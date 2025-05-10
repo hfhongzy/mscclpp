@@ -66,4 +66,17 @@ MSCCLPP_API_CPP std::shared_ptr<Connection> Context::connect(Endpoint localEndpo
   return conn;
 }
 
+MSCCLPP_API_CPP std::shared_ptr<Connection> Context::connectWithNewStream(Endpoint localEndpoint,
+                                                                          Endpoint remoteEndpoint) {
+  std::shared_ptr<Connection> conn;
+  if (localEndpoint.transport() != Transport::CudaIpc || remoteEndpoint.transport() != Transport::CudaIpc) {
+    throw mscclpp::Error("connectWithNewStream only suuport CudaIpc", ErrorCode::InvalidUsage);
+  }
+  std::shared_ptr<CudaStreamWithFlags> stream = std::make_shared<CudaStreamWithFlags>();
+  stream->set(cudaStreamNonBlocking);
+  conn = std::make_shared<CudaIpcConnection>(localEndpoint, remoteEndpoint, stream);
+  pimpl_->connections_.push_back(conn);
+  return conn;
+}
+
 }  // namespace mscclpp
